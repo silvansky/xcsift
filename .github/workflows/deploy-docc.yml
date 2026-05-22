@@ -2,7 +2,7 @@ name: Deploy DocC
 
 on:
   push:
-    tags: ['v*']
+    branches: [master]
   workflow_dispatch:
 
 permissions:
