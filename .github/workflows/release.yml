@@ -51,9 +51,9 @@ jobs:
           VERSION="${{ github.ref_name }}"
           VERSION="${VERSION#v}"
           if [ "${{ matrix.platform }}" = "macos-arm64" ]; then
-            sed -i '' "s/VERSION_PLACEHOLDER/$VERSION/g" Sources/main.swift
+            sed -i '' "s/VERSION_PLACEHOLDER/$VERSION/g" Sources/xcsift/main.swift
           else
-            sed -i "s/VERSION_PLACEHOLDER/$VERSION/g" Sources/main.swift
+            sed -i "s/VERSION_PLACEHOLDER/$VERSION/g" Sources/xcsift/main.swift
           fi
 
       - name: Build release binary
