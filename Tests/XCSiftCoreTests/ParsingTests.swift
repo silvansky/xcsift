@@ -1689,4 +1689,62 @@ final class ParsingTests: XCTestCase {
             "Second message should contain Comment B, got: \(result.failedTests[1].message)"
         )
     }
+
+    func testCoreDataOsLogErrorIsNoise() {
+        // os_log runtime line embedding `CoreData: error:` must not count as a build error.
+        let parser = OutputParser()
+        let input = """
+            2026-06-09 18:30:32.546476+0300 MyApp[97437:3561389] [error] CoreData: error: addPersistentStoreWithType:configuration:URL:options:error: returned error NSCocoaErrorDomain (134100)
+            Test Case 'MyTests.testExample' passed (0.001 seconds).
+            """
+
+        let result = parser.parse(input: input)
+
+        XCTAssertEqual(result.errors.count, 0)
+        XCTAssertEqual(result.status, "success")
+    }
+
+    func testBareCoreDataErrorIsNoise() {
+        // Bare CoreData runtime output (no timestamp) must not count as a build error.
+        let parser = OutputParser()
+        let input = """
+            CoreData: error: reason : The model used to open the store is incompatible
+            Test Case 'MyTests.testExample' passed (0.001 seconds).
+            """
+
+        let result = parser.parse(input: input)
+
+        XCTAssertEqual(result.errors.count, 0)
+        XCTAssertEqual(result.status, "success")
+    }
+
+    func testOsLogWarningIsNoise() {
+        // os_log runtime line embedding `: warning:` must not count as a compiler warning.
+        let parser = OutputParser()
+        let input = """
+            2026-06-09 18:30:32.546476+0300 MyApp[97437:3561389] [warning] SomeSubsystem: warning: something happened
+            Test Case 'MyTests.testExample' passed (0.001 seconds).
+            """
+
+        let result = parser.parse(input: input)
+
+        XCTAssertEqual(result.summary.warnings, 0)
+        XCTAssertEqual(result.status, "success")
+    }
+
+    func testRealErrorStillParsedAlongsideCoreDataNoise() {
+        // A genuine compiler error must survive even when CoreData noise is present.
+        let parser = OutputParser()
+        let input = """
+            2026-06-09 18:30:32.546476+0300 MyApp[97437:3561389] [error] CoreData: error: returned error NSCocoaErrorDomain (134100)
+            main.swift:15:5: error: use of undeclared identifier 'unknown'
+            """
+
+        let result = parser.parse(input: input)
+
+        XCTAssertEqual(result.errors.count, 1)
+        XCTAssertEqual(result.errors[0].file, "main.swift")
+        XCTAssertEqual(result.errors[0].line, 15)
+        XCTAssertEqual(result.status, "failed")
+    }
 }

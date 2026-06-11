@@ -9,6 +9,9 @@ enum XcodebuildSymbols {
     static let fatalErrorFormat = ": Fatal error: "
     static let fatalErrorSuffix = ": Fatal error"
 
+    // Runtime log noise (os_log/NSLog output that embeds `: error:`/`: warning:` but is not a diagnostic)
+    static let coreDataLogPrefix = "CoreData: "
+
     // Fast-path filter keywords
     static let errorKeyword = "error:"
     static let warningKeyword = "warning:"

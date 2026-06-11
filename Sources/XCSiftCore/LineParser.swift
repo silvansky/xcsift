@@ -428,6 +428,36 @@ public struct LineParser: Sendable {
         Anchor.endOfSubject
     }
 
+    // os_log/NSLog runtime line: `YYYY-MM-DD HH:MM:SS… Process[pid:tid]…`
+    private nonisolated(unsafe) static let osLogLineRegex = Regex {
+        Anchor.startOfSubject
+        Repeat(count: 4) { One(.digit) }
+        "-"
+        Repeat(count: 2) { One(.digit) }
+        "-"
+        Repeat(count: 2) { One(.digit) }
+        " "
+        Repeat(count: 2) { One(.digit) }
+        ":"
+        Repeat(count: 2) { One(.digit) }
+        ":"
+        Repeat(count: 2) { One(.digit) }
+        OneOrMore(.any, .reluctant)
+        "["
+        OneOrMore(.digit)
+        ":"
+        OneOrMore(.digit)
+        "]"
+    }
+
+    /// App runtime logging (e.g. `2026-… App[pid:tid] [error] CoreData: error: …` or bare
+    /// `CoreData: error: …`) embeds `: error:`/`: warning:` substrings but is not a compiler
+    /// diagnostic. Skip so runtime noise never inflates error/warning counts.
+    private func isRuntimeLogNoise(_ line: String) -> Bool {
+        if line.hasPrefix(XcodebuildSymbols.coreDataLogPrefix) { return true }
+        return line.firstMatch(of: Self.osLogLineRegex) != nil
+    }
+
     // MARK: - Linker Parsing
 
     private mutating func parseLinkerLine(_ line: String) -> ParseEvent? {
@@ -769,6 +799,7 @@ public struct LineParser: Sendable {
 
     private func parseError(_ line: String) -> BuildError? {
         if isJSONLikeLine(line) { return nil }
+        if isRuntimeLogNoise(line) { return nil }
         if line.hasPrefix(" "), line.contains("|") || line.contains("`") { return nil }
 
         if let errorRange = line.range(of: XcodebuildSymbols.errorFormat) {
@@ -826,6 +857,7 @@ public struct LineParser: Sendable {
 
     private func parseWarning(_ line: String) -> BuildWarning? {
         if isJSONLikeLine(line) { return nil }
+        if isRuntimeLogNoise(line) { return nil }
         if line.hasPrefix(" "), line.contains("|") || line.contains("`") { return nil }
 
         if let warningRange = line.range(of: XcodebuildSymbols.warningFormat) {
